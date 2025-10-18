@@ -24,11 +24,11 @@ except AttributeError:
     st.stop()
 
 # --- AI MODEL INITIALIZATION ---
-MODEL_NAME = 'gemini-1.5-flash-latest' # Using a modern, reliable model
+## CORRECTED MODEL NAME ##
+MODEL_NAME = 'gemini-2.5-flash' # Using the stable, working model
 model = genai.GenerativeModel(MODEL_NAME)
 
 # --- HELPER FUNCTION FOR PROMPT GENERATION (UPDATED) ---
-## NEW ## - Added 'age' and 'emotional_state' parameters
 def generate_prompt(current_role, desired_role, experience, skills, age, emotional_state):
     return f"""
     Act as an expert career strategist and a highly empathetic AI learning advisor for the tech industry in Bengaluru, India.
@@ -38,7 +38,6 @@ def generate_prompt(current_role, desired_role, experience, skills, age, emotion
     - Desired Role: {desired_role}
     - Total Years of Experience: {experience} years
     - Existing Skills: {skills}
-    ## NEW ## - Added personal context for the AI
     - Age: {age}
     - Current Emotional State: "{emotional_state}"
 
@@ -85,12 +84,10 @@ with tab1:
     with col1:
         current_role = st.text_input("Your Current Job Title", placeholder="e.g., Graphic Designer")
         desired_role = st.text_input("Your Desired Job Title", placeholder="e.g., Frontend Developer")
-        ## NEW ## - Added Age input
         age = st.number_input("Your Age", min_value=18, max_value=70, step=1, value=25)
 
     with col2:
         experience = st.number_input("Your Years of Experience", min_value=0, max_value=50, step=1)
-        ## NEW ## - Added Emotional State input
         emotional_state = st.selectbox(
             "How are you feeling about this career transition?",
             ("Excited and Eager", "Hopeful but a little nervous", "Feeling Anxious", "Feeling Burnt Out", "Just Curious")
@@ -103,7 +100,6 @@ with tab1:
         else:
             with st.spinner("Crafting your personalized future... Please wait."):
                 try:
-                    ## NEW ## - Pass the new variables to the function
                     prompt = generate_prompt(current_role, desired_role, experience, skills, age, emotional_state)
                     response = model.generate_content(prompt)
 
@@ -131,7 +127,8 @@ with tab2:
 
     if "chat_session" not in st.session_state:
         st.session_state.chat_session = genai.GenerativeModel(
-            MODEL_NAME,
+            ## CORRECTED MODEL NAME ##
+            MODEL_NAME, # Use the stable model for chat too
             system_instruction=SYSTEM_INSTRUCTION
         ).start_chat()
         st.session_state.messages = [{"role": "model", "content": "Hello! I'm your MindScape Coach. How can I support your career journey today?"}]
