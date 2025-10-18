@@ -18,46 +18,59 @@ st.set_page_config(
 
 # --- API CONFIGURATION ---
 try:
-    # Uses the most stable and robust model name for fast, general tasks
     genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 except AttributeError:
     st.error("API Key not found. Please create a .env file with your GOOGLE_API_KEY.")
     st.stop()
 
 # --- AI MODEL INITIALIZATION ---
-# Base model for the detailed roadmap generation
-MODEL_NAME = 'gemini-2.5-flash'
+MODEL_NAME = 'gemini-1.5-flash-latest' # Using a modern, reliable model
 model = genai.GenerativeModel(MODEL_NAME)
 
-# --- HELPER FUNCTION FOR PROMPT GENERATION ---
-def generate_prompt(current_role, desired_role, experience, skills):
+# --- HELPER FUNCTION FOR PROMPT GENERATION (UPDATED) ---
+## NEW ## - Added 'age' and 'emotional_state' parameters
+def generate_prompt(current_role, desired_role, experience, skills, age, emotional_state):
     return f"""
-    Act as an expert career strategist and AI learning advisor for the tech industry in Bengaluru, India.
-    Today's date is October 8, 2025.
+    Act as an expert career strategist and a highly empathetic AI learning advisor for the tech industry in Bengaluru, India.
 
-    A professional with the following profile is seeking a personalized reskilling roadmap:
+    A professional has the following profile:
     - Current Role: {current_role}
     - Desired Role: {desired_role}
     - Total Years of Experience: {experience} years
     - Existing Skills: {skills}
+    ## NEW ## - Added personal context for the AI
+    - Age: {age}
+    - Current Emotional State: "{emotional_state}"
 
-    Based on the current job market trends and skill demands in Bengaluru, generate a detailed, actionable 3-month reskilling roadmap. The plan must be structured, practical, and motivating.
+    Your task is to generate a detailed, actionable 3-month reskilling roadmap.
+    **Crucially, you must tailor the tone and recommendations based on the user's emotional state.** For example, if they are feeling "anxious" or "burnt out," the plan should start with smaller, more manageable goals and include advice for managing stress. If they are "excited," the plan can be more aggressive.
 
-    The output should be in Markdown format and must include the following sections:
+    The output must be in Markdown and include these sections:
 
-    ### 1. Skill Gap Analysis
-    ### 2. 3-Month Week-by-Week Roadmap
+    ### 1. Empathetic Opening & Skill Gap Analysis
+    Start with a supportive opening that acknowledges their emotional state before analyzing the skill gap.
+
+    ### 2. Personalized 3-Month Week-by-Week Roadmap
+    - **Month 1: Foundational Skills & Confidence Building:** Focus on core concepts and quick wins.
+    - **Month 2: Advanced Topics & Specialization:** Deeper knowledge.
+    - **Month 3: Portfolio Project & Interview Prep:** A capstone project and job application prep.
+    The pacing must be adjusted based on their emotional state.
+
     ### 3. Recommended Learning Resources
+    Provide 3-5 specific, high-quality online courses, books, or tutorials.
+
     ### 4. Portfolio Project Idea
+    Suggest a concrete project idea impressive to recruiters in Bengaluru.
+
     ### 5. Resume & LinkedIn Keywords
+    List 5-7 essential keywords for their resume and LinkedIn profile.
     """
 
-# --- STREAMLIT USER INTERFACE (WITH TABS) ---
+# --- STREAMLIT USER INTERFACE (UPDATED) ---
 
 st.title("MindScape 🧠")
 st.subheader("Your AI-Powered Career Transition Co-Pilot")
 
-# Create two tabs for the two main features
 tab1, tab2 = st.tabs(["🚀 Career Roadmap Generator", "💬 AI Motivation Coach"])
 
 with tab1:
@@ -66,34 +79,38 @@ with tab1:
     )
     st.markdown("---")
 
+    # Use columns for a cleaner layout
     col1, col2 = st.columns(2)
+
     with col1:
-        current_role = st.text_input(
-            "Your Current Job Title", placeholder="e.g., Graphic Designer"
-        )
-        desired_role = st.text_input(
-            "Your Desired Job Title", placeholder="e.g., Frontend Developer"
-        )
+        current_role = st.text_input("Your Current Job Title", placeholder="e.g., Graphic Designer")
+        desired_role = st.text_input("Your Desired Job Title", placeholder="e.g., Frontend Developer")
+        ## NEW ## - Added Age input
+        age = st.number_input("Your Age", min_value=18, max_value=70, step=1, value=25)
+
     with col2:
-        experience = st.number_input(
-            "Your Years of Experience", min_value=0, max_value=30, step=1
+        experience = st.number_input("Your Years of Experience", min_value=0, max_value=50, step=1)
+        ## NEW ## - Added Emotional State input
+        emotional_state = st.selectbox(
+            "How are you feeling about this career transition?",
+            ("Excited and Eager", "Hopeful but a little nervous", "Feeling Anxious", "Feeling Burnt Out", "Just Curious")
         )
-        skills = st.text_area(
-            "Your Current Skills (comma-separated)",
-            placeholder="e.g., Figma, basic HTML, basic CSS",
-        )
+        skills = st.text_area("Your Current Skills (comma-separated)", placeholder="e.g., Figma, basic HTML")
 
     if st.button("✨ Generate My Personalized Roadmap", use_container_width=True):
         if not all([current_role, desired_role, skills]):
-            st.warning("Please fill in all the fields before generating the roadmap.")
+            st.warning("Please fill in all the required fields before generating the roadmap.")
         else:
-            with st.spinner("Crafting your future... Please wait a moment."):
+            with st.spinner("Crafting your personalized future... Please wait."):
                 try:
-                    prompt = generate_prompt(current_role, desired_role, experience, skills)
+                    ## NEW ## - Pass the new variables to the function
+                    prompt = generate_prompt(current_role, desired_role, experience, skills, age, emotional_state)
                     response = model.generate_content(prompt)
+
                     st.markdown("---")
                     st.header("✨ Your Custom Reskilling Roadmap ✨")
                     st.markdown(response.text)
+
                 except Exception as e:
                     st.error(f"An error occurred: {e}")
                     st.info("Please try checking your network connection or try rephrasing.")
@@ -105,7 +122,6 @@ with tab2:
     )
 
     # --- AI COACH SETUP (Conversational Assistant) ---
-    
     SYSTEM_INSTRUCTION = (
         "You are 'MindScape Coach,' an empathetic and highly knowledgeable AI career counselor based in Bengaluru. "
         "Your goal is to provide supportive, concise, and actionable advice for professionals during career transitions. "
@@ -113,34 +129,26 @@ with tab2:
         "Keep your tone encouraging and professional. Do not give medical or financial advice."
     )
 
-    # Initialize chat session with the personality
     if "chat_session" not in st.session_state:
         st.session_state.chat_session = genai.GenerativeModel(
-            MODEL_NAME, # Use the stable model for chat too
+            MODEL_NAME,
             system_instruction=SYSTEM_INSTRUCTION
         ).start_chat()
-        
-        st.session_state.messages = [{"role": "model", "content": "Hello! I'm your MindScape Coach. Tell me, how can I support you in your career journey today?"}]
-    
-    # Display previous messages
+        st.session_state.messages = [{"role": "model", "content": "Hello! I'm your MindScape Coach. How can I support your career journey today?"}]
+
     for msg in st.session_state.messages:
         chat_message(msg["role"]).write(msg["content"])
 
-    # Handle user input
     if prompt := chat_input("Ask your coach a question..."):
-        # Add user message to history
         st.session_state.messages.append({"role": "user", "content": prompt})
         chat_message("user").write(prompt)
 
-        # Send to AI
         with st.spinner("Coach is thinking..."):
             try:
                 response = st.session_state.chat_session.send_message(prompt)
-                
-                # Add AI response to history
                 ai_response = response.text
                 st.session_state.messages.append({"role": "model", "content": ai_response})
                 chat_message("model").write(ai_response)
             except Exception as e:
                 st.error(f"An error occurred: {e}")
-                st.info("The coach lost connection. Please try restarting the app or try rephrasing.")
+                st.info("The coach lost connection. Please try again.")
